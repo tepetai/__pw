@@ -1,117 +1,722 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Workbench</title>
+    <title>PDF Area Extractor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger: #dc2626;
+            --danger-hover: #b91c1c;
+            --bg-sidebar: #f8fafc;
+            --bg-main: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --multi-select: #10b981;
+            --multi-select-hover: #059669;
+        }
+
+        * {
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
+            padding: 0;
+            box-sizing: border-box;
         }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--text-primary);
+            background: var(--bg-main);
+            line-height: 1.5;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
         .controls {
-            background-color: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            width: 320px;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
         }
-        .pdf-container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+
+        .controls h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--text-primary);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        #file-input {
+            opacity: 0;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .file-input-label:hover {
+            background: var(--primary-hover);
+        }
+
+        .settings-group {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: white;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .settings-group h3 {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .input-row {
+            margin: 0.5rem 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-row label {
+            margin-right: 0.5rem;
+            min-width: 60px;
+        }
+
+        .input-row input {
+            flex: 1;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+            border-radius: 0.25rem;
+        }
+
+        button {
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-size: 0.875rem;
+            margin: 0.25rem 0;
+            width: 100%;
+        }
+
+        button.primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        button.primary:hover {
+            background: var(--primary-hover);
+        }
+
+        button.danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        button.danger:hover {
+            background: var(--danger-hover);
+        }
+
+        .status {
+            margin: 1rem 0;
+            padding: 0.75rem;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
             text-align: center;
         }
-        .pdf-viewer {
-            border: 1px dashed #ccc;
-            margin: 0 auto;
-            position: relative;
-            overflow: hidden;
+
+        .pdf-container {
+            flex: 1;
+            padding: 2rem;
+            margin-left: 320px;
+            background: var(--bg-main);
         }
+
+        .page-container {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .page-header span {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .page-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .page-actions button {
+            width: auto;
+            padding: 0.5rem 1rem;
+            background: var(--bg-sidebar);
+            color: var(--text-primary);
+        }
+
+        .page-actions button:hover {
+            background: var(--border);
+        }
+
+        .canvas-container {
+            position: relative;
+            padding: 1rem;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
         .selection-area {
             position: absolute;
-            border: 2px solid red;
-            background-color: rgba(255,0,0,0.1);
-            cursor: move;
+            border: 2px solid var(--primary);
+            background: rgba(37, 99, 235, 0.1);
+            display: none;
+            pointer-events: none;
         }
-        .results {
-            display: grid;
-            gap: 10px;
-            margin-top: 20px;
+
+        .results-container {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .result-row {
-            display: flex;
-            gap: 10px;
-            overflow-x: auto;
-            padding: 10px 0;
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
         }
-        .result-item {
-            border: 1px solid #ddd;
-            padding: 5px;
-            background-color: white;
+
+        .results-table th, .results-table td {
+            border: 1px solid var(--border);
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .results-table th {
+            background-color: var(--bg-sidebar);
+        }
+
+        .result-image {
+            max-width: 100%;
+            height: auto;
             transition: transform 0.2s;
         }
-        .result-item:hover {
+
+        .result-image:hover {
             transform: scale(2);
             z-index: 100;
             box-shadow: 0 0 10px rgba(0,0,0,0.3);
         }
-        button {
-            padding: 8px 15px;
-            margin-right: 10px;
-            cursor: pointer;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-        input, select {
-            padding: 8px;
-            margin-right: 10px;
-        }
-        .resize-handle {
-            width: 10px;
-            height: 10px;
-            background-color: blue;
-            position: absolute;
-            right: 0;
-            bottom: 0;
-            cursor: nwse-resize;
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .controls {
+                position: static;
+                width: 100%;
+                height: auto;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .pdf-container {
+                margin-left: 0;
+                padding: 1rem;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="controls">
-        <h2>Настройки</h2>
-        <input type="file" id="pdfInput" accept=".pdf">
-        <button id="rotateBtn">Повернуть PDF (90°)</button>
-        <label>Ширина изображений: <input type="number" id="imgWidth" value="200"></label>
-        <label>Высота изображений: <input type="number" id="imgHeight" value="150"></label>
-        <button id="addSelectionBtn">Добавить выделение</button>
-        <button id="processBtn">Обработать все страницы</button>
-    </div>
-
-    <div class="pdf-container">
-        <h3>Текущая страница: <span id="currentPage">1</span></h3>
-        <button id="prevPage">Предыдущая</button>
-        <button id="nextPage">Следующая</button>
-        <div class="pdf-viewer" id="pdfViewer">
-            <!-- PDF будет отображаться здесь -->
+    <div class="container">
+        <div class="controls">
+            <h2>PDF Area Extractor</h2>
+            
+            <div class="file-input-wrapper">
+                <input type="file" id="file-input" accept=".pdf">
+                <div class="file-input-label">Choose PDF File</div>
+            </div>
+            
+            <div class="settings-group">
+                <h3>Selection Settings</h3>
+                <div class="input-row">
+                    <label for="img-width">Width:</label>
+                    <input type="number" id="img-width" value="200" min="50">
+                </div>
+                <div class="input-row">
+                    <label for="img-height">Height:</label>
+                    <input type="number" id="img-height" value="150" min="50">
+                </div>
+                <button id="add-selection" class="primary">Add Selection Area</button>
+                <button id="clear-selections" class="danger">Clear All Selections</button>
+            </div>
+            
+            <div class="settings-group">
+                <h3>Processing</h3>
+                <button id="process-current" class="primary">Process Current Page</button>
+                <button id="process-all" class="primary">Process All Pages</button>
+            </div>
+            
+            <div class="status" id="status">Ready - select PDF file</div>
         </div>
+
+        <div class="pdf-container" id="pdf-container"></div>
     </div>
 
-    <div class="results" id="results">
-        <h3>Результаты:</h3>
-        <!-- Результаты будут отображаться здесь -->
-    </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
     <script>
-        // Здесь будет основной JavaScript код
+        // Initialize PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let pdfDoc = null;
+        let currentPage = 1;
+        let selecting = false;
+        let selectionAreas = [];
+        let currentSelection = null;
+        let currentCanvas = null;
+        const rotations = {};
+        let pdfFile = null;
+
+        document.getElementById('file-input').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                pdfFile = file;
+                document.getElementById('status').textContent = "Loading PDF...";
+                const reader = new FileReader();
+                reader.onload = async function(event) {
+                    const typedarray = new Uint8Array(event.target.result);
+                    try {
+                        await loadPDF(typedarray);
+                        document.getElementById('status').textContent = "Ready - add selection areas";
+                    } catch (error) {
+                        console.error('Error loading PDF:', error);
+                        document.getElementById('status').textContent = "Error loading PDF";
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        async function loadPDF(data) {
+            try {
+                pdfDoc = await pdfjsLib.getDocument({ 
+                    data: data,
+                    cMapUrl: 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/cmaps/',
+                    cMapPacked: true
+                }).promise;
+                
+                // Clear previous selections
+                selectionAreas = [];
+                document.getElementById('pdf-container').innerHTML = '';
+                
+                // Render first page
+                await renderPage(1);
+            } catch (error) {
+                console.error('Error in loadPDF:', error);
+                throw error;
+            }
+        }
+
+        async function renderPage(pageNum) {
+            const container = document.getElementById('pdf-container');
+            container.innerHTML = '';
+
+            const pageContainer = document.createElement('div');
+            pageContainer.className = 'page-container';
+            
+            const pageHeader = document.createElement('div');
+            pageHeader.className = 'page-header';
+            pageHeader.innerHTML = `
+                <span>Page ${pageNum}</span>
+                <div class="page-actions">
+                    <button onclick="rotatePage(${pageNum}, -90)">↶</button>
+                    <button onclick="rotatePage(${pageNum}, 90)">↷</button>
+                </div>
+            `;
+            pageContainer.appendChild(pageHeader);
+
+            const canvasContainer = document.createElement('div');
+            canvasContainer.className = 'canvas-container';
+            
+            const canvas = document.createElement('canvas');
+            canvas.setAttribute('data-page', pageNum);
+            canvasContainer.appendChild(canvas);
+
+            // Add existing selection areas for this page
+            selectionAreas.forEach(area => {
+                if (area.page === pageNum) {
+                    const selectionDiv = document.createElement('div');
+                    selectionDiv.className = 'selection-area';
+                    selectionDiv.style.display = 'block';
+                    selectionDiv.style.left = area.displayX + 'px';
+                    selectionDiv.style.top = area.displayY + 'px';
+                    selectionDiv.style.width = area.displayWidth + 'px';
+                    selectionDiv.style.height = area.displayHeight + 'px';
+                    canvasContainer.appendChild(selectionDiv);
+                }
+            });
+
+            pageContainer.appendChild(canvasContainer);
+            container.appendChild(pageContainer);
+
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const rotation = rotations[pageNum] || 0;
+                
+                // Higher scale for better quality
+                const scale = 1.5;
+                const viewport = page.getViewport({ 
+                    scale: scale * window.devicePixelRatio, 
+                    rotation 
+                });
+                
+                // Save original dimensions for coordinate calculations
+                canvas.dataset.originalWidth = viewport.width;
+                canvas.dataset.originalHeight = viewport.height;
+                
+                // Set canvas dimensions
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                canvas.style.width = `${viewport.width / window.devicePixelRatio}px`;
+                canvas.style.height = `${viewport.height / window.devicePixelRatio}px`;
+
+                const context = canvas.getContext('2d');
+                context.imageSmoothingEnabled = true;
+                context.imageSmoothingQuality = 'high';
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport,
+                    intent: 'print',
+                    background: '#ffffff'
+                }).promise;
+
+                // Set up selection events
+                setupSelectionEvents(canvasContainer, canvas);
+            } catch (error) {
+                console.error(`Error rendering page ${pageNum}:`, error);
+                throw error;
+            }
+        }
+
+        function setupSelectionEvents(container, canvas) {
+            container.addEventListener('mousedown', startSelection);
+            container.addEventListener('mousemove', updateSelection);
+            container.addEventListener('mouseup', endSelection);
+            currentCanvas = canvas;
+        }
+
+        function startSelection(e) {
+            if (e.button !== 0) return;
+            
+            const container = e.currentTarget;
+            const rect = container.getBoundingClientRect();
+            
+            // Calculate scale between original and displayed dimensions
+            const scaleX = parseFloat(currentCanvas.dataset.originalWidth) / rect.width;
+            const scaleY = parseFloat(currentCanvas.dataset.originalHeight) / rect.height;
+            
+            // Save actual coordinates on the canvas
+            startX = (e.clientX - rect.left) * scaleX;
+            startY = (e.clientY - rect.top) * scaleY;
+            
+            // Create new selection area
+            currentSelection = document.createElement('div');
+            currentSelection.className = 'selection-area';
+            container.appendChild(currentSelection);
+            
+            // Set visual selection position (in screen pixels)
+            currentSelection.style.display = 'block';
+            currentSelection.style.left = (e.clientX - rect.left) + 'px';
+            currentSelection.style.top = (e.clientY - rect.top) + 'px';
+            currentSelection.style.width = '0px';
+            currentSelection.style.height = '0px';
+            
+            selecting = true;
+            document.getElementById('status').textContent = "Selecting area...";
+        }
+
+        function updateSelection(e) {
+            if (!selecting || !currentSelection) return;
+            
+            const container = e.currentTarget;
+            const rect = container.getBoundingClientRect();
+            
+            // Calculate scale between original and displayed dimensions
+            const scaleX = parseFloat(currentCanvas.dataset.originalWidth) / rect.width;
+            const scaleY = parseFloat(currentCanvas.dataset.originalHeight) / rect.height;
+            
+            // Get actual coordinates on the canvas
+            const currentX = (e.clientX - rect.left) * scaleX;
+            const currentY = (e.clientY - rect.top) * scaleY;
+            
+            const width = currentX - startX;
+            const height = currentY - startY;
+            
+            // Update visual selection (in screen pixels)
+            currentSelection.style.width = Math.abs(width / scaleX) + 'px';
+            currentSelection.style.height = Math.abs(height / scaleY) + 'px';
+            currentSelection.style.left = (width < 0 ? (currentX / scaleX) : (startX / scaleX)) + 'px';
+            currentSelection.style.top = (height < 0 ? (currentY / scaleY) : (startY / scaleY)) + 'px';
+        }
+
+        function endSelection() {
+            if (!selecting || !currentSelection) return;
+            selecting = false;
+            
+            const container = currentSelection.parentElement;
+            const rect = container.getBoundingClientRect();
+            const selectionRect = currentSelection.getBoundingClientRect();
+            
+            // Calculate scale between original and displayed dimensions
+            const scaleX = parseFloat(currentCanvas.dataset.originalWidth) / rect.width;
+            const scaleY = parseFloat(currentCanvas.dataset.originalHeight) / rect.height;
+            
+            // Get page number from canvas
+            const pageNum = parseInt(currentCanvas.getAttribute('data-page'));
+            
+            // Save the selection area
+            selectionAreas.push({
+                page: pageNum,
+                canvas: currentCanvas,
+                x: (selectionRect.left - rect.left) * scaleX,
+                y: (selectionRect.top - rect.top) * scaleY,
+                width: selectionRect.width * scaleX,
+                height: selectionRect.height * scaleY,
+                displayX: selectionRect.left - rect.left,
+                displayY: selectionRect.top - rect.top,
+                displayWidth: selectionRect.width,
+                displayHeight: selectionRect.height,
+                element: currentSelection
+            });
+            
+            document.getElementById('status').textContent = `Selection area added (total: ${selectionAreas.length})`;
+            currentSelection = null;
+        }
+
+        document.getElementById('add-selection').addEventListener('click', () => {
+            if (!pdfDoc) {
+                document.getElementById('status').textContent = "Please load PDF first";
+                return;
+            }
+            document.getElementById('status').textContent = "Click and drag on PDF to create selection area";
+        });
+
+        document.getElementById('clear-selections').addEventListener('click', () => {
+            selectionAreas = [];
+            document.querySelectorAll('.selection-area').forEach(el => {
+                if (el !== currentSelection) el.remove();
+            });
+            document.getElementById('status').textContent = "All selection areas cleared";
+        });
+
+        document.getElementById('process-current').addEventListener('click', async () => {
+            if (!pdfDoc || selectionAreas.length === 0) {
+                document.getElementById('status').textContent = "Please load PDF and add selection areas first";
+                return;
+            }
+            
+            await processPage(currentPage);
+        });
+
+        document.getElementById('process-all').addEventListener('click', async () => {
+            if (!pdfDoc || selectionAreas.length === 0) {
+                document.getElementById('status').textContent = "Please load PDF and add selection areas first";
+                return;
+            }
+            
+            for (let pageNum = 1; pageNum <= pdfDoc.numPages; pageNum++) {
+                await processPage(pageNum);
+            }
+            
+            document.getElementById('status').textContent = `Processed all ${pdfDoc.numPages} pages`;
+        });
+
+        async function processPage(pageNum) {
+            document.getElementById('status').textContent = `Processing page ${pageNum}...`;
+            
+            try {
+                const page = await pdfDoc.getPage(pageNum);
+                const rotation = rotations[pageNum] || 0;
+                
+                // Create a canvas with higher resolution
+                const viewport = page.getViewport({ scale: 3.0, rotation });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                await page.render({
+                    canvasContext: context,
+                    viewport: viewport
+                }).promise;
+                
+                // Process all selection areas for this page
+                const pageAreas = selectionAreas.filter(area => area.page === pageNum);
+                const results = [];
+                
+                for (const area of pageAreas) {
+                    // Adjust coordinates for rotation
+                    let x = area.x;
+                    let y = area.y;
+                    let width = area.width;
+                    let height = area.height;
+                    
+                    if (rotation === 90) {
+                        x = area.y;
+                        y = canvas.height - area.x - area.width;
+                        width = area.height;
+                        height = area.width;
+                    } else if (rotation === 180) {
+                        x = canvas.width - area.x - area.width;
+                        y = canvas.height - area.y - area.height;
+                    } else if (rotation === 270) {
+                        x = canvas.width - area.y - area.height;
+                        y = area.x;
+                        width = area.height;
+                        height = area.width;
+                    }
+                    
+                    // Create result image
+                    const resultCanvas = document.createElement('canvas');
+                    resultCanvas.width = parseInt(document.getElementById('img-width').value);
+                    resultCanvas.height = parseInt(document.getElementById('img-height').value);
+                    const resultCtx = resultCanvas.getContext('2d');
+                    
+                    // Draw the selected area
+                    resultCtx.drawImage(
+                        canvas, 
+                        x, y, width, height,
+                        0, 0, resultCanvas.width, resultCanvas.height
+                    );
+                    
+                    results.push(resultCanvas.toDataURL('image/png'));
+                }
+                
+                // Display results
+                displayResults(pageNum, results);
+                document.getElementById('status').textContent = `Page ${pageNum} processed`;
+            } catch (error) {
+                console.error(`Error processing page ${pageNum}:`, error);
+                document.getElementById('status').textContent = `Error processing page ${pageNum}`;
+            }
+        }
+
+        function displayResults(pageNum, images) {
+            let resultsContainer = document.querySelector('.results-container');
+            
+            if (!resultsContainer) {
+                resultsContainer = document.createElement('div');
+                resultsContainer.className = 'results-container';
+                resultsContainer.innerHTML = '<h3>Results</h3>';
+                document.getElementById('pdf-container').appendChild(resultsContainer);
+                
+                const table = document.createElement('table');
+                table.className = 'results-table';
+                table.innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>Page</th>
+                            ${Array.from({length: selectionAreas.length}, (_, i) => `<th>Area ${i+1}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody id="results-body"></tbody>
+                `;
+                resultsContainer.appendChild(table);
+            }
+            
+            const tbody = document.getElementById('results-body');
+            const row = document.createElement('tr');
+            
+            // Add page number cell
+            const pageCell = document.createElement('td');
+            pageCell.textContent = pageNum;
+            row.appendChild(pageCell);
+            
+            // Add image cells
+            images.forEach(imgData => {
+                const imgCell = document.createElement('td');
+                const img = document.createElement('img');
+                img.src = imgData;
+                img.className = 'result-image';
+                imgCell.appendChild(img);
+                row.appendChild(imgCell);
+            });
+            
+            // If this page has fewer areas than others, fill with empty cells
+            for (let i = images.length; i < selectionAreas.length; i++) {
+                row.appendChild(document.createElement('td'));
+            }
+            
+            // Check if we already have a row for this page
+            const existingRow = document.querySelector(`#results-body tr:nth-child(${pageNum})`);
+            if (existingRow) {
+                existingRow.replaceWith(row);
+            } else {
+                tbody.appendChild(row);
+            }
+        }
+
+        // Make rotate function available globally
+        window.rotatePage = async function(pageNum, degrees) {
+            rotations[pageNum] = (rotations[pageNum] || 0) + degrees;
+            await renderPage(pageNum);
+            document.getElementById('status').textContent = `Page ${pageNum} rotated`;
+        };
     </script>
 </body>
 </html>
